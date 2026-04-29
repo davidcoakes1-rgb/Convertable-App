@@ -2,8 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>Convertable — Unit Converter</title>
+
+<!-- PWA -->
+<meta name="theme-color" content="#0F766E"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="Convertable"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" href="icon.svg" type="image/svg+xml"/>
+<link rel="apple-touch-icon" href="icon.svg"/>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -11,16 +22,39 @@
   html, body { margin: 0; padding: 0; }
   body {
     font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
-    background: #E8ECF0;
-    min-height: 100vh;
+    background: #FAFAFB;
+    min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
     color: #1B1B22;
+    overscroll-behavior-y: none;
   }
   * { box-sizing: border-box; }
   button { font-family: inherit; }
   input { font-family: inherit; }
-  .phone-inner::-webkit-scrollbar { width: 0; height: 0; }
-  .phone-inner { scrollbar-width: none; }
+
+  #app-shell {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100dvh;
+    margin: 0 auto;
+    background: #FAFAFB;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  /* Desktop: subtle gradient backdrop, soft shadow on the centered card */
+  @media (min-width: 600px) {
+    body { background: radial-gradient(ellipse at top, #F4F6FA 0%, #E4E7EE 100%); }
+    #app-shell { box-shadow: 0 20px 60px rgba(20,20,40,0.10); }
+  }
+  /* Sticky bottom nav respects Android gesture bar / iOS home indicator */
+  .app-bottom-nav-wrap {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    background: #fff;
+  }
 </style>
 </head>
 <body>
@@ -33,9 +67,6 @@
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useRef, useMemo } = React;
 
-// ───────────────────────────────────────────────────────────
-// Theme — baked-in defaults (was a tweakable panel in the design)
-// ───────────────────────────────────────────────────────────
 const TWEAKS = { accent: 'teal', tileStyle: 'solid', radius: 6 };
 
 const ACCENTS = {
@@ -46,9 +77,6 @@ const ACCENTS = {
   slate:   { bg: '#475569', soft: '#E2E8F0', deep: '#1E293B' },
 };
 
-// ───────────────────────────────────────────────────────────
-// Category palette + icons
-// ───────────────────────────────────────────────────────────
 const CATEGORY_COLORS = {
   distance:    { bg: '#10B981', soft: '#D1FAE5', deep: '#047857' },
   area:        { bg: '#6366F1', soft: '#E0E7FF', deep: '#4338CA' },
@@ -170,9 +198,6 @@ const ICONS = {
   ),
 };
 
-// ───────────────────────────────────────────────────────────
-// Categories, units, conversion math
-// ───────────────────────────────────────────────────────────
 const CATEGORIES = {
   distance: {
     name: 'Length',
@@ -222,7 +247,6 @@ const CATEGORIES = {
       { id: 'ton_uk',label: 'UK Ton',     short: 'long tn', factor: 1016046.91 },
       { id: 'ton_us',label: 'US Ton',     short: 'short tn', factor: 907184.74 },
     ],
-    // st_lb is a composite encoded as ST.LL (e.g. 11.05 = 11 stones 5 pounds)
     toBase: (v, u) => {
       if (u === 'st_lb') {
         const stones = Math.trunc(v);
@@ -465,76 +489,6 @@ function formatValue(v, unitId, categoryId) {
 const HOME_ORDER = ['weight', 'distance', 'speed', 'currency', 'area', 'volume', 'temperature', 'time'];
 
 // ───────────────────────────────────────────────────────────
-// Phone chrome
-// ───────────────────────────────────────────────────────────
-function StatusBar({ color = '#fff', bg = 'transparent' }) {
-  return (
-    <div style={{
-      height: 28, background: bg, color,
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 16px', fontSize: 12, fontWeight: 600, letterSpacing: 0.2,
-      fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
-      flexShrink: 0, position: 'relative', zIndex: 2,
-    }}>
-      <span>9:41</span>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <svg width="14" height="10" viewBox="0 0 14 10" fill={color}>
-          <path d="M1 8h2v1.5H1zM4.5 6h2v3.5h-2zM8 3.5h2v6H8zM11.5 1h2v8.5h-2z" opacity=".95"/>
-        </svg>
-        <svg width="14" height="10" viewBox="0 0 14 10" fill={color}>
-          <path d="M7 2c2 0 4 .8 5.5 2.2l-1 1.1A6 6 0 007 3.5a6 6 0 00-4.5 1.8l-1-1.1A8 8 0 017 2zm0 2.5c1.4 0 2.7.5 3.7 1.4l-1 1.1A4 4 0 007 5.8a4 4 0 00-2.7 1.2l-1-1.1A5.5 5.5 0 017 4.5zm0 2.5c.8 0 1.5.3 2 .8l-1 1.1a1.5 1.5 0 00-2 0l-1-1.1A3 3 0 017 7z"/>
-        </svg>
-        <svg width="22" height="11" viewBox="0 0 22 11" fill="none">
-          <rect x="0.5" y="0.5" width="19" height="10" rx="2" stroke={color} opacity=".7"/>
-          <rect x="2" y="2" width="14" height="7" rx="1" fill={color}/>
-          <rect x="20" y="3.5" width="1.5" height="4" rx=".7" fill={color} opacity=".7"/>
-        </svg>
-      </div>
-    </div>
-  );
-}
-
-function NavGestureBar({ color = '#fff' }) {
-  return (
-    <div style={{
-      height: 22, display:'flex', alignItems:'center', justifyContent:'center',
-      background:'transparent', flexShrink: 0,
-    }}>
-      <div style={{ width: 120, height: 4, borderRadius: 4, background: color, opacity: 0.55 }}/>
-    </div>
-  );
-}
-
-function Phone({ children, chromeColor = '#4338CA', bottomNav = null }) {
-  return (
-    <div style={{
-      width: 380, height: 800,
-      borderRadius: 52, padding: 10,
-      background: 'linear-gradient(160deg, #2A2A33 0%, #0F0F16 100%)',
-      boxShadow: '0 40px 90px rgba(20,20,40,0.35), 0 10px 30px rgba(20,20,40,0.2), inset 0 0 0 1.5px rgba(255,255,255,0.08)',
-      position: 'relative', flexShrink: 0,
-    }}>
-      <div style={{ position:'absolute', left:-2, top: 140, width: 3, height: 48, borderRadius: 2, background:'#1a1a20' }}/>
-      <div style={{ position:'absolute', left:-2, top: 200, width: 3, height: 72, borderRadius: 2, background:'#1a1a20' }}/>
-      <div style={{ position:'absolute', right:-2, top: 180, width: 3, height: 92, borderRadius: 2, background:'#1a1a20' }}/>
-      <div className="phone-inner" style={{
-        width: '100%', height: '100%',
-        borderRadius: 42, overflow: 'hidden',
-        background: '#FAFAFB',
-        display: 'flex', flexDirection: 'column',
-        position: 'relative',
-      }}>
-        <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {children}
-        </div>
-        {bottomNav}
-        <NavGestureBar color={chromeColor}/>
-      </div>
-    </div>
-  );
-}
-
-// ───────────────────────────────────────────────────────────
 // Tile + home pieces
 // ───────────────────────────────────────────────────────────
 function CategoryTile({ categoryId, onClick, radius = 20, style = 'solid' }) {
@@ -552,7 +506,7 @@ function CategoryTile({ categoryId, onClick, radius = 20, style = 'solid' }) {
         all: 'unset', cursor: 'pointer', boxSizing: 'border-box',
         width: '100%',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        justifyContent: 'center', gap: 5, padding: '12px 8px',
+        justifyContent: 'center', gap: 5, padding: '14px 8px',
         background: isSolid ? color.bg : color.soft,
         borderRadius: radius,
         transform: pressed ? 'scale(0.94)' : 'scale(1)',
@@ -740,11 +694,10 @@ function BottomNav({ active, onChange, accent }) {
 // ───────────────────────────────────────────────────────────
 function HomeScreen({ onOpen, radius, tileStyle, accent, history }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#FAFAFB' }}>
-      <StatusBar color="#fff" bg={accent.deep} />
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, background: '#FAFAFB' }}>
       <div style={{
         background: `linear-gradient(160deg, ${accent.bg} 0%, ${accent.deep} 100%)`,
-        padding: '16px 20px 20px', color: '#fff',
+        padding: '20px 20px 22px', color: '#fff',
         position: 'relative', overflow: 'hidden',
         display: 'flex', flexDirection: 'column', justifyContent: 'center',
         minHeight: 120,
@@ -758,7 +711,7 @@ function HomeScreen({ onOpen, radius, tileStyle, accent, history }) {
       </div>
 
       <div style={{
-        padding: '12px 20px',
+        padding: '14px 20px',
         display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
         columnGap: 12, rowGap: 12, alignContent: 'start',
       }}>
@@ -896,11 +849,10 @@ function ConversionScreen({ categoryId, onBack, onRecord }) {
   const clear = () => setValue('');
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'#FAFAFB' }}>
-      <StatusBar color="#fff" bg={color.deep} />
+    <div style={{ display:'flex', flexDirection:'column', flex: 1, background:'#FAFAFB' }}>
       <div style={{
         background: `linear-gradient(160deg, ${color.bg} 0%, ${color.deep} 100%)`,
-        padding: '10px 14px 22px', color: '#fff',
+        padding: '14px 14px 22px', color: '#fff',
         borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
       }}>
         <div style={{ display:'flex', alignItems:'center', gap: 4 }}>
@@ -989,7 +941,7 @@ function ConversionScreen({ categoryId, onBack, onRecord }) {
       </div>
 
       <div style={{
-        flex: 1, overflow: 'auto',
+        flex: 1,
         display: 'grid', gridTemplateColumns: '1fr 1fr',
         gap: 0, padding: '18px 0 20px',
       }}>
@@ -1011,11 +963,10 @@ function ConversionScreen({ categoryId, onBack, onRecord }) {
 
 function HistoryScreen({ history, onBack, onClear, onOpen, accent }) {
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'#FAFAFB' }}>
-      <StatusBar color="#fff" bg={accent.deep} />
+    <div style={{ display:'flex', flexDirection:'column', flex: 1, background:'#FAFAFB' }}>
       <div style={{
         background: `linear-gradient(160deg, ${accent.bg} 0%, ${accent.deep} 100%)`,
-        padding: '10px 14px 26px', color: '#fff',
+        padding: '14px 14px 26px', color: '#fff',
         borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
       }}>
         <div style={{ display:'flex', alignItems:'center', gap: 4 }}>
@@ -1036,7 +987,7 @@ function HistoryScreen({ history, onBack, onClear, onOpen, accent }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: '14px 16px 24px' }}>
+      <div style={{ flex: 1, padding: '14px 16px 24px' }}>
         {history.length === 0 ? (
           <div style={{
             padding: '60px 20px', textAlign: 'center',
@@ -1095,11 +1046,10 @@ function HistoryScreen({ history, onBack, onClear, onOpen, accent }) {
 
 function FavoritesPlaceholder({ accent }) {
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'#FAFAFB' }}>
-      <StatusBar color="#fff" bg={accent.deep} />
+    <div style={{ display:'flex', flexDirection:'column', flex: 1, background:'#FAFAFB' }}>
       <div style={{
         background: `linear-gradient(160deg, ${accent.bg} 0%, ${accent.deep} 100%)`,
-        padding: '14px 20px 26px', color: '#fff',
+        padding: '20px 20px 26px', color: '#fff',
         borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
       }}>
         <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.3 }}>Favorites</div>
@@ -1131,11 +1081,10 @@ function SettingsPlaceholder({ accent }) {
     { label: 'About', value: 'v1.0' },
   ];
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'#FAFAFB' }}>
-      <StatusBar color="#fff" bg={accent.deep} />
+    <div style={{ display:'flex', flexDirection:'column', flex: 1, background:'#FAFAFB' }}>
       <div style={{
         background: `linear-gradient(160deg, ${accent.bg} 0%, ${accent.deep} 100%)`,
-        padding: '14px 20px 26px', color: '#fff',
+        padding: '20px 20px 26px', color: '#fff',
         borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
       }}>
         <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.3 }}>Settings</div>
@@ -1175,6 +1124,13 @@ function App() {
   useEffect(() => { localStorage.setItem('cau_cat', category); }, [category]);
   useEffect(() => { localStorage.setItem('cau_history', JSON.stringify(history)); }, [history]);
 
+  // Tint the Android/iOS system status bar to match the active screen
+  useEffect(() => {
+    const c = screen === 'convert' ? CATEGORY_COLORS[category].deep : accent.deep;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', c);
+  }, [screen, category, accent.deep]);
+
   const recordHistory = (entry) => {
     setHistory(prev => {
       const filtered = prev.filter(p =>
@@ -1189,17 +1145,11 @@ function App() {
     setScreen('convert');
   };
 
-  const chromeColor = screen === 'convert' ? CATEGORY_COLORS[category].deep : accent.deep;
   const showNav = ['home', 'favorites', 'history', 'settings'].includes(screen);
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex',
-      alignItems: 'center', justifyContent: 'center',
-      padding: '40px 20px',
-      background: 'radial-gradient(ellipse at top, #F4F6FA 0%, #E4E7EE 100%)',
-    }}>
-      <Phone chromeColor={chromeColor} bottomNav={showNav ? <BottomNav active={screen} onChange={setScreen} accent={accent}/> : null}>
+    <div id="app-shell">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {screen === 'home' && (
           <HomeScreen
             onOpen={openCategory}
@@ -1227,7 +1177,12 @@ function App() {
             accent={accent}
           />
         )}
-      </Phone>
+      </div>
+      {showNav && (
+        <div className="app-bottom-nav-wrap">
+          <BottomNav active={screen} onChange={setScreen} accent={accent}/>
+        </div>
+      )}
     </div>
   );
 }
