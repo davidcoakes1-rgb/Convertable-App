@@ -1,0 +1,1238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Convertable — Unit Converter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    background: #E8ECF0;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    color: #1B1B22;
+  }
+  * { box-sizing: border-box; }
+  button { font-family: inherit; }
+  input { font-family: inherit; }
+  .phone-inner::-webkit-scrollbar { width: 0; height: 0; }
+  .phone-inner { scrollbar-width: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo } = React;
+
+// ───────────────────────────────────────────────────────────
+// Theme — baked-in defaults (was a tweakable panel in the design)
+// ───────────────────────────────────────────────────────────
+const TWEAKS = { accent: 'teal', tileStyle: 'solid', radius: 6 };
+
+const ACCENTS = {
+  indigo:  { bg: '#6366F1', soft: '#E0E7FF', deep: '#4338CA' },
+  teal:    { bg: '#14B8A6', soft: '#CCFBF1', deep: '#0F766E' },
+  rose:    { bg: '#F43F5E', soft: '#FFE4E6', deep: '#BE123C' },
+  amber:   { bg: '#F59E0B', soft: '#FEF3C7', deep: '#B45309' },
+  slate:   { bg: '#475569', soft: '#E2E8F0', deep: '#1E293B' },
+};
+
+// ───────────────────────────────────────────────────────────
+// Category palette + icons
+// ───────────────────────────────────────────────────────────
+const CATEGORY_COLORS = {
+  distance:    { bg: '#10B981', soft: '#D1FAE5', deep: '#047857' },
+  area:        { bg: '#6366F1', soft: '#E0E7FF', deep: '#4338CA' },
+  weight:      { bg: '#EF4444', soft: '#FEE2E2', deep: '#B91C1C' },
+  temperature: { bg: '#F97316', soft: '#FFEDD5', deep: '#C2410C' },
+  fuel:        { bg: '#EC4899', soft: '#FCE7F3', deep: '#BE185D' },
+  speed:       { bg: '#8B5CF6', soft: '#EDE9FE', deep: '#6D28D9' },
+  time:        { bg: '#F59E0B', soft: '#FEF3C7', deep: '#B45309' },
+  cooking:     { bg: '#14B8A6', soft: '#CCFBF1', deep: '#0F766E' },
+  currency:    { bg: '#22C55E', soft: '#DCFCE7', deep: '#15803D' },
+  height:      { bg: '#0EA5E9', soft: '#E0F2FE', deep: '#0369A1' },
+  volume:      { bg: '#D946EF', soft: '#FAE8FF', deep: '#A21CAF' },
+  data:        { bg: '#0891B2', soft: '#CFFAFE', deep: '#155E75' },
+};
+
+const ICONS = {
+  distance: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+      <circle cx="12" cy="9" r="2.5"/>
+    </svg>
+  ),
+  area: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="1"/>
+      <path d="M3 8h18M8 3v18"/>
+    </svg>
+  ),
+  weight: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6.5 7h11l1.5 13H5L6.5 7z"/>
+      <path d="M9 7a3 3 0 016 0"/>
+    </svg>
+  ),
+  temperature: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 14.76V3.5a2.5 2.5 0 00-5 0v11.26a4 4 0 105 0z"/>
+    </svg>
+  ),
+  fuel: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 21h12V5a2 2 0 00-2-2H5a2 2 0 00-2 2v16z"/>
+      <path d="M15 9h2a2 2 0 012 2v5a2 2 0 11-4 0"/>
+    </svg>
+  ),
+  speed: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20a8 8 0 100-16 8 8 0 000 16z"/>
+      <path d="M12 12l4-4"/>
+    </svg>
+  ),
+  time: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M12 7v5l3 2"/>
+    </svg>
+  ),
+  cooking: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 11h16l-1.5 9h-13L4 11z"/>
+      <path d="M7 11V8a5 5 0 0110 0v3"/>
+      <path d="M9 4c.5-1 1.5-1 2 0M13 4c.5-1 1.5-1 2 0"/>
+    </svg>
+  ),
+  currency: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M15 9a3 3 0 00-3-1c-1.5 0-3 .8-3 2.2 0 3 6 1.6 6 4.6 0 1.4-1.5 2.2-3 2.2a3 3 0 01-3-1"/>
+      <path d="M12 7v10"/>
+    </svg>
+  ),
+  height: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v18M7 6l5-3 5 3M7 18l5 3 5-3"/>
+    </svg>
+  ),
+  volume: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 3h10l-1 4H8L7 3z"/>
+      <path d="M8 7l-1 14h10l-1-14"/>
+      <path d="M9 14c1-1 2-1 3 0s2 1 3 0"/>
+    </svg>
+  ),
+  data: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="5" rx="8" ry="3"/>
+      <path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/>
+      <path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/>
+    </svg>
+  ),
+  swap: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 4v16M7 4l-3 3M7 4l3 3"/>
+      <path d="M17 20V4M17 20l-3-3M17 20l3-3"/>
+    </svg>
+  ),
+  back: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 12H5M12 19l-7-7 7-7"/>
+    </svg>
+  ),
+  history: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8"/>
+      <path d="M3 3v5h5"/>
+      <path d="M12 7v5l3 2"/>
+    </svg>
+  ),
+  trash: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14"/>
+    </svg>
+  ),
+  settings: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+    </svg>
+  ),
+};
+
+// ───────────────────────────────────────────────────────────
+// Categories, units, conversion math
+// ───────────────────────────────────────────────────────────
+const CATEGORIES = {
+  distance: {
+    name: 'Length',
+    base: 'm',
+    defaults: ['km', 'mi'],
+    units: [
+      { id: 'mm', label: 'Millimetre',  short: 'mm',  factor: 0.001 },
+      { id: 'cm', label: 'Centimetre',  short: 'cm',  factor: 0.01 },
+      { id: 'm',  label: 'Metre',       short: 'm',   factor: 1 },
+      { id: 'km', label: 'Kilometre',   short: 'km',  factor: 1000 },
+      { id: 'in', label: 'Inch',        short: 'in',  factor: 0.0254 },
+      { id: 'ft', label: 'Foot',        short: 'ft',  factor: 0.3048 },
+      { id: 'yd', label: 'Yard',        short: 'yd',  factor: 0.9144 },
+      { id: 'mi', label: 'Mile',        short: 'mi',  factor: 1609.344 },
+      { id: 'nmi', label: 'Nautical mile', short: 'nmi', factor: 1852 },
+    ],
+  },
+  area: {
+    name: 'Area',
+    base: 'm2',
+    defaults: ['km2', 'acre'],
+    units: [
+      { id: 'mm2', label: 'Sq Millimetre', short: 'mm²', factor: 1e-6 },
+      { id: 'cm2', label: 'Sq Centimetre', short: 'cm²', factor: 1e-4 },
+      { id: 'm2',  label: 'Sq Metre',      short: 'm²',  factor: 1 },
+      { id: 'ha',  label: 'Hectare',       short: 'ha',  factor: 10000 },
+      { id: 'km2', label: 'Sq Kilometre',  short: 'km²', factor: 1e6 },
+      { id: 'in2', label: 'Sq Inch',       short: 'in²', factor: 0.00064516 },
+      { id: 'ft2', label: 'Sq Foot',       short: 'ft²', factor: 0.092903 },
+      { id: 'yd2', label: 'Sq Yard',       short: 'yd²', factor: 0.836127 },
+      { id: 'acre',label: 'Acre',          short: 'ac',  factor: 4046.856 },
+      { id: 'mi2', label: 'Sq Mile',       short: 'mi²', factor: 2589988.11 },
+    ],
+  },
+  weight: {
+    name: 'Weight',
+    base: 'g',
+    defaults: ['kg', 'st_lb'],
+    units: [
+      { id: 'mg',    label: 'Milligram',  short: 'mg',  factor: 0.001 },
+      { id: 'g',     label: 'Gram',       short: 'g',   factor: 1 },
+      { id: 'kg',    label: 'Kilogram',   short: 'kg',  factor: 1000 },
+      { id: 't',     label: 'Tonne',      short: 't',   factor: 1e6 },
+      { id: 'oz',    label: 'Ounce',      short: 'oz',  factor: 28.3495 },
+      { id: 'lb',    label: 'Pound',      short: 'lb',  factor: 453.592 },
+      { id: 'st_lb', label: 'Stones & Pounds', short: 'st.lb' },
+      { id: 'ton_uk',label: 'UK Ton',     short: 'long tn', factor: 1016046.91 },
+      { id: 'ton_us',label: 'US Ton',     short: 'short tn', factor: 907184.74 },
+    ],
+    // st_lb is a composite encoded as ST.LL (e.g. 11.05 = 11 stones 5 pounds)
+    toBase: (v, u) => {
+      if (u === 'st_lb') {
+        const stones = Math.trunc(v);
+        const lbs = Math.round((Math.abs(v) - Math.abs(stones)) * 100) * (v < 0 ? -1 : 1);
+        return (stones * 14 + lbs) * 453.592;
+      }
+      const unit = CATEGORIES.weight.units.find(x => x.id === u);
+      return v * unit.factor;
+    },
+    fromBase: (v, u) => {
+      if (u === 'st_lb') {
+        const totalLb = v / 453.592;
+        const sign = totalLb < 0 ? -1 : 1;
+        const abs = Math.abs(totalLb);
+        const stones = Math.floor(abs / 14);
+        const lbs = Math.round(abs - stones * 14);
+        if (lbs === 14) return sign * (stones + 1);
+        const pad = lbs < 10 ? `0${lbs}` : `${lbs}`;
+        return sign * Number(`${stones}.${pad}`);
+      }
+      const unit = CATEGORIES.weight.units.find(x => x.id === u);
+      return v / unit.factor;
+    },
+  },
+  temperature: {
+    name: 'Temperature',
+    base: 'c',
+    defaults: ['f', 'c'],
+    units: [
+      { id: 'c', label: 'Celsius',    short: '°C' },
+      { id: 'f', label: 'Fahrenheit', short: '°F' },
+      { id: 'k', label: 'Kelvin',     short: 'K'  },
+    ],
+    toBase: (v, u) => u === 'c' ? v : u === 'f' ? (v - 32) * 5/9 : v - 273.15,
+    fromBase: (v, u) => u === 'c' ? v : u === 'f' ? v * 9/5 + 32 : v + 273.15,
+  },
+  fuel: {
+    name: 'Fuel Economy',
+    base: 'kmpl',
+    defaults: ['mpg_uk', 'kmpl'],
+    units: [
+      { id: 'kmpl',   label: 'Kilometres / Litre', short: 'km/L' },
+      { id: 'l100',   label: 'Litres / 100 km',    short: 'L/100km' },
+      { id: 'mpg_us', label: 'Miles / Gallon (US)',short: 'mpg (US)' },
+      { id: 'mpg_uk', label: 'Miles / Gallon (UK)',short: 'mpg (UK)' },
+    ],
+    toBase: (v, u) => {
+      if (!v) return 0;
+      if (u === 'kmpl') return v;
+      if (u === 'l100') return 100 / v;
+      if (u === 'mpg_us') return v * 0.425144;
+      if (u === 'mpg_uk') return v * 0.354006;
+    },
+    fromBase: (v, u) => {
+      if (!v) return 0;
+      if (u === 'kmpl') return v;
+      if (u === 'l100') return 100 / v;
+      if (u === 'mpg_us') return v / 0.425144;
+      if (u === 'mpg_uk') return v / 0.354006;
+    },
+  },
+  speed: {
+    name: 'Speed',
+    base: 'mps',
+    defaults: ['kmh', 'mph'],
+    units: [
+      { id: 'mps', label: 'Metre / Second',     short: 'm/s', factor: 1 },
+      { id: 'kmh', label: 'Kilometre / Hour',   short: 'km/h',factor: 0.277778 },
+      { id: 'mph', label: 'Mile / Hour',        short: 'mph', factor: 0.44704 },
+      { id: 'fps', label: 'Foot / Second',      short: 'ft/s',factor: 0.3048 },
+      { id: 'kn',  label: 'Knot',               short: 'kn',  factor: 0.514444 },
+    ],
+  },
+  time: {
+    name: 'Time',
+    base: 's',
+    defaults: ['min', 'h'],
+    units: [
+      { id: 'ms',  label: 'Millisecond', short: 'ms', factor: 0.001 },
+      { id: 's',   label: 'Second',      short: 's',  factor: 1 },
+      { id: 'min', label: 'Minute',      short: 'min',factor: 60 },
+      { id: 'h',   label: 'Hour',        short: 'h',  factor: 3600 },
+      { id: 'd',   label: 'Day',         short: 'd',  factor: 86400 },
+      { id: 'wk',  label: 'Week',        short: 'wk', factor: 604800 },
+      { id: 'mo',  label: 'Month',       short: 'mo', factor: 2629800 },
+      { id: 'yr',  label: 'Year',        short: 'yr', factor: 31557600 },
+    ],
+  },
+  cooking: {
+    name: 'Cooking',
+    base: 'c',
+    defaults: ['gas', 'c'],
+    units: [
+      { id: 'c',   label: 'Celsius',    short: '°C' },
+      { id: 'f',   label: 'Fahrenheit', short: '°F' },
+      { id: 'gas', label: 'Gas Mark',   short: 'Gas' },
+    ],
+    toBase: (v, u) => {
+      if (u === 'c') return v;
+      if (u === 'f') return (v - 32) * 5/9;
+      if (u === 'gas') {
+        if (v <= 0.25) return 110;
+        if (v <= 0.5) return 120;
+        if (v >= 1) return 130 + v * 10;
+        return 120 + (v - 0.5) * 40;
+      }
+    },
+    fromBase: (v, u) => {
+      if (u === 'c') return v;
+      if (u === 'f') return v * 9/5 + 32;
+      if (u === 'gas') {
+        if (v <= 110) return 0.25;
+        if (v <= 120) return 0.5;
+        return Math.max(0.25, (v - 130) / 10);
+      }
+    },
+  },
+  currency: {
+    name: 'Currency',
+    base: 'usd',
+    defaults: ['usd', 'eur'],
+    units: [
+      { id: 'usd', label: 'US Dollar',       short: 'USD', factor: 1 },
+      { id: 'eur', label: 'Euro',            short: 'EUR', factor: 1.08 },
+      { id: 'gbp', label: 'British Pound',   short: 'GBP', factor: 1.26 },
+      { id: 'jpy', label: 'Japanese Yen',    short: 'JPY', factor: 0.0067 },
+      { id: 'cad', label: 'Canadian Dollar', short: 'CAD', factor: 0.73 },
+      { id: 'aud', label: 'Australian Dollar',short:'AUD', factor: 0.66 },
+      { id: 'chf', label: 'Swiss Franc',     short: 'CHF', factor: 1.12 },
+      { id: 'cny', label: 'Chinese Yuan',    short: 'CNY', factor: 0.14 },
+      { id: 'inr', label: 'Indian Rupee',    short: 'INR', factor: 0.012 },
+      { id: 'mxn', label: 'Mexican Peso',    short: 'MXN', factor: 0.058 },
+    ],
+  },
+  volume: {
+    name: 'Volume',
+    base: 'l',
+    defaults: ['l', 'gal_us'],
+    units: [
+      { id: 'ml',     label: 'Millilitre',    short: 'mL',   factor: 0.001 },
+      { id: 'l',      label: 'Litre',         short: 'L',    factor: 1 },
+      { id: 'm3',     label: 'Cubic Metre',   short: 'm³',   factor: 1000 },
+      { id: 'tsp',    label: 'Teaspoon',      short: 'tsp',  factor: 0.00492892 },
+      { id: 'tbsp',   label: 'Tablespoon',    short: 'tbsp', factor: 0.0147868 },
+      { id: 'cup',    label: 'Cup (US)',      short: 'cup',  factor: 0.236588 },
+      { id: 'pt_us',  label: 'Pint (US)',     short: 'pt',   factor: 0.473176 },
+      { id: 'qt_us',  label: 'Quart (US)',    short: 'qt',   factor: 0.946353 },
+      { id: 'gal_us', label: 'Gallon (US)',   short: 'gal',  factor: 3.78541 },
+      { id: 'gal_uk', label: 'Gallon (UK)',   short: 'gal UK', factor: 4.54609 },
+      { id: 'floz_us',label: 'Fluid Ounce (US)', short: 'fl oz', factor: 0.0295735 },
+    ],
+  },
+  data: {
+    name: 'Data',
+    base: 'b',
+    defaults: ['mb', 'gb'],
+    units: [
+      { id: 'b',  label: 'Byte',      short: 'B',  factor: 1 },
+      { id: 'kb', label: 'Kilobyte',  short: 'KB', factor: 1024 },
+      { id: 'mb', label: 'Megabyte',  short: 'MB', factor: 1048576 },
+      { id: 'gb', label: 'Gigabyte',  short: 'GB', factor: 1073741824 },
+      { id: 'tb', label: 'Terabyte',  short: 'TB', factor: 1099511627776 },
+      { id: 'pb', label: 'Petabyte',  short: 'PB', factor: 1125899906842624 },
+      { id: 'bit',label: 'Bit',       short: 'bit',factor: 0.125 },
+      { id: 'kbit',label: 'Kilobit',  short: 'Kb', factor: 128 },
+      { id: 'mbit',label: 'Megabit',  short: 'Mb', factor: 131072 },
+      { id: 'gbit',label: 'Gigabit',  short: 'Gb', factor: 134217728 },
+    ],
+  },
+  height: {
+    name: 'Height',
+    base: 'cm',
+    defaults: ['cm', 'ftin'],
+    units: [
+      { id: 'cm',   label: 'Centimetre',  short: 'cm' },
+      { id: 'm',    label: 'Metre',       short: 'm'  },
+      { id: 'in',   label: 'Inch',        short: 'in' },
+      { id: 'ft',   label: 'Foot',        short: 'ft' },
+      { id: 'ftin', label: 'Feet & Inches', short: "ft'in\"" },
+    ],
+    toBase: (v, u) => {
+      if (u === 'cm') return v;
+      if (u === 'm') return v * 100;
+      if (u === 'in') return v * 2.54;
+      if (u === 'ft') return v * 30.48;
+      if (u === 'ftin') return v * 30.48;
+    },
+    fromBase: (v, u) => {
+      if (u === 'cm') return v;
+      if (u === 'm') return v / 100;
+      if (u === 'in') return v / 2.54;
+      if (u === 'ft') return v / 30.48;
+      if (u === 'ftin') return v / 30.48;
+    },
+  },
+};
+
+function convert(categoryId, value, fromId, toId) {
+  const cat = CATEGORIES[categoryId];
+  if (!cat || value === '' || value === null || isNaN(value)) return '';
+  const v = Number(value);
+  let base;
+  if (cat.toBase) base = cat.toBase(v, fromId);
+  else            base = v * cat.units.find(x => x.id === fromId).factor;
+  let out;
+  if (cat.fromBase) out = cat.fromBase(base, toId);
+  else              out = base / cat.units.find(x => x.id === toId).factor;
+  return out;
+}
+
+function formatValue(v, unitId, categoryId) {
+  if (v === '' || v === null || v === undefined || isNaN(v)) return '';
+  if (categoryId === 'weight' && unitId === 'st_lb') {
+    const sign = v < 0 ? '-' : '';
+    const abs = Math.abs(v);
+    const stones = Math.trunc(abs);
+    const lbs = Math.round((abs - stones) * 100);
+    return `${sign}${stones} st ${lbs} lb`;
+  }
+  if (categoryId === 'height' && unitId === 'ftin') {
+    const feet = Math.floor(v);
+    const inches = Math.round((v - feet) * 12 * 10) / 10;
+    if (inches >= 12) return `${feet + 1}' 0"`;
+    return `${feet}' ${inches}"`;
+  }
+  if (categoryId === 'cooking' && unitId === 'gas') {
+    if (v <= 0.3) return '¼';
+    if (v <= 0.6) return '½';
+    return String(Math.round(v * 10) / 10);
+  }
+  const abs = Math.abs(v);
+  if (abs === 0) return '0';
+  if (abs >= 1000000) return v.toExponential(4);
+  if (abs >= 100) return (Math.round(v * 100) / 100).toLocaleString();
+  if (abs >= 1) return (Math.round(v * 10000) / 10000).toString();
+  if (abs >= 0.01) return (Math.round(v * 100000) / 100000).toString();
+  return v.toPrecision(4);
+}
+
+const HOME_ORDER = ['weight', 'distance', 'speed', 'currency', 'area', 'volume', 'temperature', 'time'];
+
+// ───────────────────────────────────────────────────────────
+// Phone chrome
+// ───────────────────────────────────────────────────────────
+function StatusBar({ color = '#fff', bg = 'transparent' }) {
+  return (
+    <div style={{
+      height: 28, background: bg, color,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0 16px', fontSize: 12, fontWeight: 600, letterSpacing: 0.2,
+      fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+      flexShrink: 0, position: 'relative', zIndex: 2,
+    }}>
+      <span>9:41</span>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <svg width="14" height="10" viewBox="0 0 14 10" fill={color}>
+          <path d="M1 8h2v1.5H1zM4.5 6h2v3.5h-2zM8 3.5h2v6H8zM11.5 1h2v8.5h-2z" opacity=".95"/>
+        </svg>
+        <svg width="14" height="10" viewBox="0 0 14 10" fill={color}>
+          <path d="M7 2c2 0 4 .8 5.5 2.2l-1 1.1A6 6 0 007 3.5a6 6 0 00-4.5 1.8l-1-1.1A8 8 0 017 2zm0 2.5c1.4 0 2.7.5 3.7 1.4l-1 1.1A4 4 0 007 5.8a4 4 0 00-2.7 1.2l-1-1.1A5.5 5.5 0 017 4.5zm0 2.5c.8 0 1.5.3 2 .8l-1 1.1a1.5 1.5 0 00-2 0l-1-1.1A3 3 0 017 7z"/>
+        </svg>
+        <svg width="22" height="11" viewBox="0 0 22 11" fill="none">
+          <rect x="0.5" y="0.5" width="19" height="10" rx="2" stroke={color} opacity=".7"/>
+          <rect x="2" y="2" width="14" height="7" rx="1" fill={color}/>
+          <rect x="20" y="3.5" width="1.5" height="4" rx=".7" fill={color} opacity=".7"/>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function NavGestureBar({ color = '#fff' }) {
+  return (
+    <div style={{
+      height: 22, display:'flex', alignItems:'center', justifyContent:'center',
+      background:'transparent', flexShrink: 0,
+    }}>
+      <div style={{ width: 120, height: 4, borderRadius: 4, background: color, opacity: 0.55 }}/>
+    </div>
+  );
+}
+
+function Phone({ children, chromeColor = '#4338CA', bottomNav = null }) {
+  return (
+    <div style={{
+      width: 380, height: 800,
+      borderRadius: 52, padding: 10,
+      background: 'linear-gradient(160deg, #2A2A33 0%, #0F0F16 100%)',
+      boxShadow: '0 40px 90px rgba(20,20,40,0.35), 0 10px 30px rgba(20,20,40,0.2), inset 0 0 0 1.5px rgba(255,255,255,0.08)',
+      position: 'relative', flexShrink: 0,
+    }}>
+      <div style={{ position:'absolute', left:-2, top: 140, width: 3, height: 48, borderRadius: 2, background:'#1a1a20' }}/>
+      <div style={{ position:'absolute', left:-2, top: 200, width: 3, height: 72, borderRadius: 2, background:'#1a1a20' }}/>
+      <div style={{ position:'absolute', right:-2, top: 180, width: 3, height: 92, borderRadius: 2, background:'#1a1a20' }}/>
+      <div className="phone-inner" style={{
+        width: '100%', height: '100%',
+        borderRadius: 42, overflow: 'hidden',
+        background: '#FAFAFB',
+        display: 'flex', flexDirection: 'column',
+        position: 'relative',
+      }}>
+        <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {children}
+        </div>
+        {bottomNav}
+        <NavGestureBar color={chromeColor}/>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────
+// Tile + home pieces
+// ───────────────────────────────────────────────────────────
+function CategoryTile({ categoryId, onClick, radius = 20, style = 'solid' }) {
+  const cat = CATEGORIES[categoryId];
+  const color = CATEGORY_COLORS[categoryId];
+  const [pressed, setPressed] = useState(false);
+  const isSolid = style === 'solid';
+  return (
+    <button
+      onClick={onClick}
+      onPointerDown={() => setPressed(true)}
+      onPointerUp={() => setPressed(false)}
+      onPointerLeave={() => setPressed(false)}
+      style={{
+        all: 'unset', cursor: 'pointer', boxSizing: 'border-box',
+        width: '100%',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', gap: 5, padding: '12px 8px',
+        background: isSolid ? color.bg : color.soft,
+        borderRadius: radius,
+        transform: pressed ? 'scale(0.94)' : 'scale(1)',
+        transition: 'transform 120ms cubic-bezier(.3,1.4,.5,1), box-shadow 160ms',
+        boxShadow: pressed
+          ? `0 1px 2px ${color.deep}40`
+          : `0 3px 0 ${color.deep}`,
+      }}
+      aria-label={cat.name}
+    >
+      <div style={{
+        width: 28, height: 28,
+        color: isSolid ? '#fff' : color.deep,
+      }}>
+        {ICONS[categoryId]}
+      </div>
+      <div style={{
+        color: isSolid ? '#fff' : color.deep,
+        fontSize: 12.5, fontWeight: 700, letterSpacing: 0.1,
+      }}>
+        {cat.name}
+      </div>
+    </button>
+  );
+}
+
+function RecentsStrip({ history, onOpen }) {
+  if (!history.length) return null;
+  const recents = history.slice(0, 2);
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <div style={{
+        display:'flex', alignItems:'center', justifyContent:'space-between',
+        padding: '0 20px 10px',
+      }}>
+        <div style={{
+          fontSize: 11, fontWeight: 800, letterSpacing: 1.2,
+          textTransform: 'uppercase', color: '#9B9BA3',
+        }}>Recent</div>
+      </div>
+      <div style={{
+        padding: '0 20px 6px',
+        display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+        columnGap: 12,
+      }}>
+        {recents.map(h => {
+          const cat = CATEGORIES[h.category];
+          const color = CATEGORY_COLORS[h.category];
+          const fromU = cat.units.find(u => u.id === h.from);
+          const toU = cat.units.find(u => u.id === h.to);
+          return (
+            <button key={h.id} onClick={() => onOpen(h.category)} style={{
+              all:'unset', cursor:'pointer',
+              boxSizing: 'border-box', width: '100%', minWidth: 0,
+              display:'flex', alignItems:'center', gap: 10,
+              background: '#fff', padding: '10px 12px 10px 10px',
+              borderRadius: 14,
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.05)',
+            }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: 9,
+                background: color.bg, color: '#fff',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                flexShrink: 0,
+              }}>
+                <div style={{ width: 16, height: 16 }}>{ICONS[h.category]}</div>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 9, fontWeight: 800, color: color.deep, letterSpacing: 0.5, textTransform:'uppercase' }}>
+                  {cat.name}
+                </div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: '#2A2A33', whiteSpace:'nowrap', marginTop: 1, overflow:'hidden', textOverflow:'ellipsis' }}>
+                  {formatValue(h.fromValue, h.from, h.category)} {fromU.short}
+                  <span style={{ color:'#C0C0C8', margin: '0 3px' }}>→</span>
+                  {formatValue(h.toValue, h.to, h.category)} {toU.short}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const FACTOIDS = [
+  { icon: 'weight',      text: '1 stone equals 14 pounds — still used in the UK for body weight.' },
+  { icon: 'cooking',     text: 'Gas Mark 4 is roughly 180°C — a classic moderate oven.' },
+  { icon: 'distance',    text: '1 nautical mile is exactly 1,852 metres, one minute of latitude.' },
+  { icon: 'temperature', text: 'Celsius and Fahrenheit meet at exactly −40°.' },
+  { icon: 'speed',       text: 'Mach 1 at sea level is about 343 m/s — the speed of sound in air.' },
+  { icon: 'data',        text: 'A terabyte holds roughly 250,000 photos from an average phone.' },
+  { icon: 'volume',      text: 'A US cup is 240 mL; a UK cup is 250 mL — watch your recipes.' },
+  { icon: 'fuel',        text: '30 mpg (US) is about 12.75 km/L — or 7.8 L/100 km.' },
+];
+
+function Factoid() {
+  const idx = useMemo(() => Math.floor(Date.now() / 86400000) % FACTOIDS.length, []);
+  const f = FACTOIDS[idx];
+  const color = CATEGORY_COLORS[f.icon];
+  return (
+    <div style={{
+      margin: '2px 18px 16px',
+      display:'flex', alignItems:'center', gap: 12,
+      padding: 14, borderRadius: 16,
+      background: '#fff',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 2px 10px rgba(0,0,0,0.05)',
+    }}>
+      <div style={{
+        width: 42, height: 42, borderRadius: 12,
+        background: color.soft, color: color.deep,
+        display:'flex', alignItems:'center', justifyContent:'center',
+        flexShrink: 0,
+      }}>
+        <div style={{ width: 22, height: 22 }}>{ICONS[f.icon]}</div>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 10, fontWeight: 800, letterSpacing: 1.2,
+          textTransform: 'uppercase', color: '#9B9BA3',
+        }}>Did you know</div>
+        <div style={{
+          fontSize: 13, fontWeight: 600, color: '#2A2A33',
+          lineHeight: 1.35, marginTop: 2, textWrap: 'pretty',
+        }}>{f.text}</div>
+      </div>
+    </div>
+  );
+}
+
+function BottomNav({ active, onChange, accent }) {
+  const items = [
+    { id: 'home',     label: 'Home',     icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>
+      </svg>
+    )},
+    { id: 'favorites', label: 'Favorites', icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 17.3l-6.2 3.7 1.7-7.1L2 9.2l7.2-.6L12 2l2.8 6.6 7.2.6-5.5 4.7 1.7 7.1z"/>
+      </svg>
+    )},
+    { id: 'history', label: 'History', icon: ICONS.history },
+    { id: 'settings', label: 'Settings', icon: ICONS.settings },
+  ];
+  return (
+    <div style={{
+      background: '#fff',
+      borderTop: '1px solid #EEEFF3',
+      padding: '6px 6px 4px',
+      display:'flex', justifyContent:'space-around',
+      flexShrink: 0,
+    }}>
+      {items.map(it => {
+        const isActive = active === it.id;
+        return (
+          <button key={it.id} onClick={() => onChange(it.id)} style={{
+            all:'unset', cursor:'pointer', flex: 1,
+            display:'flex', flexDirection:'column', alignItems:'center',
+            gap: 2, padding: '8px 4px',
+          }}>
+            <div style={{
+              width: 50, height: 26, borderRadius: 14,
+              display:'flex', alignItems:'center', justifyContent:'center',
+              background: isActive ? accent.soft : 'transparent',
+              color: isActive ? accent.deep : '#7B7B85',
+              transition: 'background 180ms',
+            }}>
+              <div style={{ width: 22, height: 22 }}>{it.icon}</div>
+            </div>
+            <div style={{
+              fontSize: 10.5, fontWeight: isActive ? 800 : 600,
+              color: isActive ? accent.deep : '#7B7B85',
+              letterSpacing: 0.2,
+            }}>{it.label}</div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────
+// Screens
+// ───────────────────────────────────────────────────────────
+function HomeScreen({ onOpen, radius, tileStyle, accent, history }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#FAFAFB' }}>
+      <StatusBar color="#fff" bg={accent.deep} />
+      <div style={{
+        background: `linear-gradient(160deg, ${accent.bg} 0%, ${accent.deep} 100%)`,
+        padding: '16px 20px 20px', color: '#fff',
+        position: 'relative', overflow: 'hidden',
+        display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        minHeight: 120,
+      }}>
+        <div style={{ position:'absolute', right:-40, top:-20, width:160, height:160, borderRadius:'50%', background:'rgba(255,255,255,0.08)' }}/>
+        <div style={{ position:'absolute', right:60, bottom:-70, width:120, height:120, borderRadius:'50%', background:'rgba(255,255,255,0.06)' }}/>
+        <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: -0.5, lineHeight: 1.1 }}>Convertable</div>
+        <div style={{ marginTop: 6, fontSize: 13, fontWeight: 500, opacity: 0.9 }}>
+          Pick a category to start converting →
+        </div>
+      </div>
+
+      <div style={{
+        padding: '12px 20px',
+        display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+        columnGap: 12, rowGap: 12, alignContent: 'start',
+      }}>
+        {HOME_ORDER.map(id => (
+          <CategoryTile key={id} categoryId={id} onClick={() => onOpen(id)} radius={radius} style={tileStyle}/>
+        ))}
+      </div>
+
+      <RecentsStrip history={history} onOpen={onOpen} />
+      <Factoid />
+    </div>
+  );
+}
+
+function UnitColumn({ title, units, selected, onSelect, color }) {
+  return (
+    <div style={{ padding: '0 10px' }}>
+      <div style={{
+        fontSize: 11, fontWeight: 800, letterSpacing: 1.5,
+        color: '#9B9BA3', textTransform: 'uppercase',
+        padding: '4px 12px 10px',
+      }}>{title}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {units.map(u => {
+          const active = u.id === selected;
+          return (
+            <button
+              key={u.id}
+              onClick={() => onSelect(u.id)}
+              style={{
+                all: 'unset', cursor: 'pointer', boxSizing: 'border-box',
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 12px', borderRadius: 12,
+                background: active ? color.soft : 'transparent',
+                transition: 'background 140ms',
+              }}
+            >
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                border: `2px solid ${active ? color.bg : '#D0D0D8'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: active ? color.bg : 'transparent',
+                transition: 'all 140ms',
+              }}>
+                {active && <div style={{ width: 6, height: 6, borderRadius:'50%', background:'#fff' }}/>}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 13, fontWeight: active ? 700 : 600,
+                  color: active ? color.deep : '#2A2A33',
+                  lineHeight: 1.2,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>{u.label}</div>
+                <div style={{
+                  fontSize: 11, color: '#9B9BA3', fontWeight: 500, marginTop: 1,
+                }}>{u.short}</div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ConversionScreen({ categoryId, onBack, onRecord }) {
+  const cat = CATEGORIES[categoryId];
+  const color = CATEGORY_COLORS[categoryId];
+  const [fromUnit, setFromUnit] = useState(cat.defaults[0]);
+  const [toUnit, setToUnit] = useState(cat.defaults[1]);
+  const [value, setValue] = useState(categoryId === 'temperature' ? '100' : categoryId === 'cooking' ? '180' : '1');
+  const [swapRot, setSwapRot] = useState(0);
+  const [recorded, setRecorded] = useState(null);
+
+  const parsedValue = useMemo(() => {
+    if (value === '' || value === '-') return 0;
+    if (categoryId === 'weight' && fromUnit === 'st_lb') {
+      const m = String(value).match(/^(-?)(\d*)(?:\.(\d{0,2}))?$/);
+      if (!m) return Number(value) || 0;
+      const sign = m[1] === '-' ? -1 : 1;
+      const stones = m[2] === '' ? 0 : parseInt(m[2], 10);
+      const lbsStr = m[3] || '';
+      let lbs = lbsStr === '' ? 0 : parseInt(lbsStr, 10);
+      if (lbs > 13) lbs = 13;
+      const pad = lbs < 10 ? `0${lbs}` : `${lbs}`;
+      return sign * Number(`${stones}.${pad}`);
+    }
+    return Number(value);
+  }, [value, fromUnit, categoryId]);
+
+  const result = useMemo(() => convert(categoryId, parsedValue, fromUnit, toUnit), [parsedValue, fromUnit, toUnit, categoryId]);
+  const fromU = cat.units.find(u => u.id === fromUnit);
+  const toU = cat.units.find(u => u.id === toUnit);
+
+  useEffect(() => {
+    if (value === '' || isNaN(Number(value))) return;
+    const t = setTimeout(() => {
+      const entry = {
+        id: Date.now(),
+        category: categoryId,
+        from: fromUnit, to: toUnit,
+        fromValue: parsedValue,
+        toValue: result,
+        ts: Date.now(),
+      };
+      if (recorded !== `${value}-${fromUnit}-${toUnit}`) {
+        onRecord(entry);
+        setRecorded(`${value}-${fromUnit}-${toUnit}`);
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [value, fromUnit, toUnit, result, categoryId]);
+
+  const handleSetFromUnit = (newU) => {
+    if (categoryId === 'weight') {
+      if (newU === 'st_lb' && fromUnit !== 'st_lb') setValue('11');
+      if (newU !== 'st_lb' && fromUnit === 'st_lb') setValue('1');
+    }
+    setFromUnit(newU);
+  };
+
+  const swap = () => {
+    setSwapRot(r => r + 180);
+    setFromUnit(toUnit); setToUnit(fromUnit);
+    if (categoryId === 'weight' && toUnit === 'st_lb') {
+      const abs = Math.abs(result);
+      const stones = Math.trunc(abs);
+      const lbs = Math.round((abs - stones) * 100);
+      setValue(`${result < 0 ? '-' : ''}${stones}${lbs ? `.${lbs}` : ''}`);
+    } else {
+      setValue(formatValue(result, toUnit, categoryId).replace(/[^\d.\-]/g, '') || '0');
+    }
+  };
+
+  const clear = () => setValue('');
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'#FAFAFB' }}>
+      <StatusBar color="#fff" bg={color.deep} />
+      <div style={{
+        background: `linear-gradient(160deg, ${color.bg} 0%, ${color.deep} 100%)`,
+        padding: '10px 14px 22px', color: '#fff',
+        borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+      }}>
+        <div style={{ display:'flex', alignItems:'center', gap: 4 }}>
+          <button onClick={onBack} style={{
+            all:'unset', cursor:'pointer', width:40, height:40,
+            display:'flex', alignItems:'center', justifyContent:'center',
+            borderRadius: 12,
+          }}>
+            <div style={{ width: 22, height: 22, color:'#fff' }}>{ICONS.back}</div>
+          </button>
+          <div style={{ flex:1, display:'flex', alignItems:'center', gap: 10 }}>
+            <div style={{ width: 26, height: 26, color:'#fff' }}>{ICONS[categoryId]}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.3 }}>{cat.name}</div>
+          </div>
+          <button onClick={clear} style={{
+            all:'unset', cursor:'pointer', width:40, height:40,
+            display:'flex', alignItems:'center', justifyContent:'center',
+            borderRadius: 12,
+          }}>
+            <div style={{ width: 22, height: 22, color:'#fff' }}>{ICONS.trash}</div>
+          </button>
+        </div>
+
+        <div style={{
+          marginTop: 14, background: 'rgba(255,255,255,0.14)',
+          borderRadius: 20, padding: 16, backdropFilter: 'blur(6px)',
+          border: '1px solid rgba(255,255,255,0.2)',
+        }}>
+          <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.85, letterSpacing: 1.2, textTransform:'uppercase' }}>
+              From · {fromU.short}
+            </div>
+            {fromUnit === 'st_lb' && (
+              <div style={{ fontSize: 10, fontWeight: 600, opacity: 0.75, fontStyle:'italic' }}>
+                Type as st.lb · e.g. 11.5 = 11 st 5 lb
+              </div>
+            )}
+          </div>
+          <input
+            value={value}
+            onChange={e => {
+              const v = e.target.value;
+              if (v === '' || v === '-' || /^-?\d*\.?\d*$/.test(v)) setValue(v);
+            }}
+            inputMode="decimal"
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              background: 'transparent', border: 'none', outline: 'none',
+              color: '#fff', fontSize: 38, fontWeight: 800, letterSpacing: -1,
+              fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+              marginTop: 4, padding: 0,
+              caretColor: '#fff',
+            }}
+          />
+          {fromUnit === 'st_lb' && value !== '' && value !== '-' && (
+            <div style={{ fontSize: 12, fontWeight: 600, opacity: 0.85, marginTop: -2 }}>
+              {formatValue(parsedValue, 'st_lb', 'weight')}
+            </div>
+          )}
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.25)', margin: '6px 0 14px' }}/>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', gap: 10 }}>
+            <div style={{ flex:1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.85, letterSpacing: 1.2, textTransform:'uppercase' }}>
+                To · {toU.short}
+              </div>
+              <div style={{
+                fontSize: 30, fontWeight: 800, marginTop: 4, letterSpacing: -0.8,
+                overflowWrap:'anywhere', lineHeight: 1.1,
+              }}>
+                {formatValue(result, toUnit, categoryId) || '—'}
+              </div>
+            </div>
+            <button onClick={swap} style={{
+              all:'unset', cursor:'pointer', flexShrink: 0,
+              width: 52, height: 52, borderRadius: 18,
+              background: '#fff', color: color.deep,
+              display:'flex', alignItems:'center', justifyContent:'center',
+              transform: `rotate(${swapRot}deg)`,
+              transition: 'transform 420ms cubic-bezier(.5,1.6,.4,1)',
+              boxShadow: '0 6px 14px rgba(0,0,0,0.18)',
+            }}>
+              <div style={{ width: 24, height: 24 }}>{ICONS.swap}</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{
+        flex: 1, overflow: 'auto',
+        display: 'grid', gridTemplateColumns: '1fr 1fr',
+        gap: 0, padding: '18px 0 20px',
+      }}>
+        <UnitColumn title="From" units={cat.units} selected={fromUnit} onSelect={handleSetFromUnit} color={color}/>
+        <UnitColumn title="To"   units={cat.units} selected={toUnit}   onSelect={setToUnit}        color={color}/>
+      </div>
+
+      {categoryId === 'currency' && (
+        <div style={{
+          padding: '0 20px 14px', fontSize: 11,
+          color: '#94949E', fontWeight: 500, textAlign:'center',
+        }}>
+          Indicative rates · updated today
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HistoryScreen({ history, onBack, onClear, onOpen, accent }) {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'#FAFAFB' }}>
+      <StatusBar color="#fff" bg={accent.deep} />
+      <div style={{
+        background: `linear-gradient(160deg, ${accent.bg} 0%, ${accent.deep} 100%)`,
+        padding: '10px 14px 26px', color: '#fff',
+        borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+      }}>
+        <div style={{ display:'flex', alignItems:'center', gap: 4 }}>
+          <button onClick={onBack} style={{
+            all:'unset', cursor:'pointer', width:40, height:40,
+            display:'flex', alignItems:'center', justifyContent:'center',
+          }}>
+            <div style={{ width: 22, height: 22, color:'#fff' }}>{ICONS.back}</div>
+          </button>
+          <div style={{ flex:1, fontSize: 20, fontWeight: 800, letterSpacing: -0.3 }}>Recent conversions</div>
+          {history.length > 0 && (
+            <button onClick={onClear} style={{
+              all:'unset', cursor:'pointer', padding: '8px 12px',
+              fontSize: 12, fontWeight: 700, color:'#fff',
+              background:'rgba(255,255,255,0.18)', borderRadius: 10,
+            }}>Clear</button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflow: 'auto', padding: '14px 16px 24px' }}>
+        {history.length === 0 ? (
+          <div style={{
+            padding: '60px 20px', textAlign: 'center',
+            color: '#9B9BA3',
+          }}>
+            <div style={{
+              width: 72, height: 72, margin: '0 auto 18px',
+              borderRadius: 24, background: '#EEEFF3',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              color: '#B8B8C0',
+            }}>
+              <div style={{ width: 36, height: 36 }}>{ICONS.history}</div>
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color:'#3B3B45' }}>No recents yet</div>
+            <div style={{ fontSize: 13, marginTop: 6 }}>Your conversions will appear here.</div>
+          </div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap: 10 }}>
+            {history.map(h => {
+              const cat = CATEGORIES[h.category];
+              const color = CATEGORY_COLORS[h.category];
+              const fromU = cat.units.find(u => u.id === h.from);
+              const toU = cat.units.find(u => u.id === h.to);
+              return (
+                <button key={h.id} onClick={() => onOpen(h.category)} style={{
+                  all:'unset', cursor:'pointer', display:'flex', gap: 12, alignItems:'center',
+                  padding: 12, background: '#fff',
+                  borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04)',
+                }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 14,
+                    background: color.bg, color:'#fff',
+                    display:'flex', alignItems:'center', justifyContent:'center', flexShrink: 0,
+                  }}>
+                    <div style={{ width: 22, height: 22 }}>{ICONS[h.category]}</div>
+                  </div>
+                  <div style={{ flex:1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, color: color.deep, fontWeight: 800, letterSpacing: 0.8, textTransform:'uppercase' }}>
+                      {cat.name}
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#2A2A33', marginTop: 2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                      {formatValue(h.fromValue, h.from, h.category)} {fromU.short}
+                      <span style={{ color:'#B8B8C0', margin: '0 6px' }}>→</span>
+                      {formatValue(h.toValue, h.to, h.category)} {toU.short}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FavoritesPlaceholder({ accent }) {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'#FAFAFB' }}>
+      <StatusBar color="#fff" bg={accent.deep} />
+      <div style={{
+        background: `linear-gradient(160deg, ${accent.bg} 0%, ${accent.deep} 100%)`,
+        padding: '14px 20px 26px', color: '#fff',
+        borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+      }}>
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.3 }}>Favorites</div>
+        <div style={{ fontSize: 13, opacity: 0.9, marginTop: 2 }}>Pin conversions you use most</div>
+      </div>
+      <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding: 24, textAlign:'center', color:'#9B9BA3' }}>
+        <div style={{
+          width: 72, height: 72, borderRadius: 24, background: accent.soft,
+          color: accent.deep,
+          display:'flex', alignItems:'center', justifyContent:'center', marginBottom: 16,
+        }}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 17.3l-6.2 3.7 1.7-7.1L2 9.2l7.2-.6L12 2l2.8 6.6 7.2.6-5.5 4.7 1.7 7.1z"/>
+          </svg>
+        </div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#3B3B45' }}>No favorites yet</div>
+        <div style={{ fontSize: 13, marginTop: 6, maxWidth: 240 }}>Long-press a conversion result to pin it here.</div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPlaceholder({ accent }) {
+  const rows = [
+    { label: 'Theme', value: 'System' },
+    { label: 'Decimal places', value: '4' },
+    { label: 'Currency rates', value: 'Indicative' },
+    { label: 'Clear history', value: '' },
+    { label: 'About', value: 'v1.0' },
+  ];
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:'#FAFAFB' }}>
+      <StatusBar color="#fff" bg={accent.deep} />
+      <div style={{
+        background: `linear-gradient(160deg, ${accent.bg} 0%, ${accent.deep} 100%)`,
+        padding: '14px 20px 26px', color: '#fff',
+        borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+      }}>
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.3 }}>Settings</div>
+        <div style={{ fontSize: 13, opacity: 0.9, marginTop: 2 }}>Customize your experience</div>
+      </div>
+      <div style={{ padding: '18px 16px', display:'flex', flexDirection:'column', gap: 8 }}>
+        {rows.map(r => (
+          <div key={r.label} style={{
+            display:'flex', alignItems:'center', justifyContent:'space-between',
+            padding: '14px 16px', background:'#fff', borderRadius: 14,
+            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color:'#2A2A33' }}>{r.label}</div>
+            <div style={{ fontSize: 13, color: '#9B9BA3', fontWeight: 600 }}>{r.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────
+// App shell
+// ───────────────────────────────────────────────────────────
+function App() {
+  const tweaks = TWEAKS;
+  const [screen, setScreen] = useState(() => localStorage.getItem('cau_screen') || 'home');
+  const [category, setCategory] = useState(() => localStorage.getItem('cau_cat') || 'distance');
+  const [history, setHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cau_history') || '[]'); }
+    catch { return []; }
+  });
+
+  const accent = ACCENTS[tweaks.accent] || ACCENTS.indigo;
+
+  useEffect(() => { localStorage.setItem('cau_screen', screen); }, [screen]);
+  useEffect(() => { localStorage.setItem('cau_cat', category); }, [category]);
+  useEffect(() => { localStorage.setItem('cau_history', JSON.stringify(history)); }, [history]);
+
+  const recordHistory = (entry) => {
+    setHistory(prev => {
+      const filtered = prev.filter(p =>
+        !(p.category === entry.category && p.from === entry.from && p.to === entry.to && p.fromValue === entry.fromValue)
+      );
+      return [entry, ...filtered].slice(0, 20);
+    });
+  };
+
+  const openCategory = (id) => {
+    setCategory(id);
+    setScreen('convert');
+  };
+
+  const chromeColor = screen === 'convert' ? CATEGORY_COLORS[category].deep : accent.deep;
+  const showNav = ['home', 'favorites', 'history', 'settings'].includes(screen);
+
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '40px 20px',
+      background: 'radial-gradient(ellipse at top, #F4F6FA 0%, #E4E7EE 100%)',
+    }}>
+      <Phone chromeColor={chromeColor} bottomNav={showNav ? <BottomNav active={screen} onChange={setScreen} accent={accent}/> : null}>
+        {screen === 'home' && (
+          <HomeScreen
+            onOpen={openCategory}
+            radius={tweaks.radius}
+            tileStyle={tweaks.tileStyle}
+            accent={accent}
+            history={history}
+          />
+        )}
+        {screen === 'favorites' && <FavoritesPlaceholder accent={accent}/>}
+        {screen === 'settings'  && <SettingsPlaceholder accent={accent}/>}
+        {screen === 'convert' && (
+          <ConversionScreen
+            categoryId={category}
+            onBack={() => setScreen('home')}
+            onRecord={recordHistory}
+          />
+        )}
+        {screen === 'history' && (
+          <HistoryScreen
+            history={history}
+            onBack={() => setScreen('home')}
+            onClear={() => setHistory([])}
+            onOpen={openCategory}
+            accent={accent}
+          />
+        )}
+      </Phone>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Local Claude Code settings (personal to this machine)
+.claude/settings.local.json
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor noise
+.vscode/
+.idea/
+
+# Future-proofing for when this becomes a Vite/Node project
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
