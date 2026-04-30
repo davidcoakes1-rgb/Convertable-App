@@ -210,11 +210,36 @@ const CATEGORIES = {
       { id: 'm',  label: 'Metre',       short: 'm',   factor: 1 },
       { id: 'km', label: 'Kilometre',   short: 'km',  factor: 1000 },
       { id: 'in', label: 'Inch',        short: 'in',  factor: 0.0254 },
-      { id: 'ftin', label: 'Feet & Inches', short: "ft'in\"", factor: 0.3048 },
+      { id: 'ftin', label: 'Feet & Inches', short: "ft'in\"" },
       { id: 'yd', label: 'Yard',        short: 'yd',  factor: 0.9144 },
       { id: 'mi', label: 'Mile',        short: 'mi',  factor: 1609.344 },
       { id: 'nmi', label: 'Nautical mile', short: 'nmi', factor: 1852 },
     ],
+    // ftin uses a composite "ft.II" encoding (II = integer inches 00-11)
+    // so "5.5" reads as 5 ft 5 in. Other units fall through to factor.
+    toBase: (v, u) => {
+      if (u === 'ftin') {
+        const feet = Math.trunc(v);
+        const inches = Math.round((Math.abs(v) - Math.abs(feet)) * 100) * (v < 0 ? -1 : 1);
+        return (feet * 12 + inches) * 0.0254;
+      }
+      const unit = CATEGORIES.distance.units.find(x => x.id === u);
+      return v * unit.factor;
+    },
+    fromBase: (v, u) => {
+      if (u === 'ftin') {
+        const totalInches = v / 0.0254;
+        const sign = totalInches < 0 ? -1 : 1;
+        const abs = Math.abs(totalInches);
+        const feet = Math.floor(abs / 12);
+        const inches = Math.round(abs - feet * 12);
+        if (inches === 12) return sign * (feet + 1);
+        const pad = inches < 10 ? `0${inches}` : `${inches}`;
+        return sign * Number(`${feet}.${pad}`);
+      }
+      const unit = CATEGORIES.distance.units.find(x => x.id === u);
+      return v / unit.factor;
+    },
   },
   area: {
     name: 'Area',
@@ -433,14 +458,27 @@ const CATEGORIES = {
       if (u === 'm') return v * 100;
       if (u === 'in') return v * 2.54;
       if (u === 'ft') return v * 30.48;
-      if (u === 'ftin') return v * 30.48;
+      if (u === 'ftin') {
+        const feet = Math.trunc(v);
+        const inches = Math.round((Math.abs(v) - Math.abs(feet)) * 100) * (v < 0 ? -1 : 1);
+        return (feet * 12 + inches) * 2.54;
+      }
     },
     fromBase: (v, u) => {
       if (u === 'cm') return v;
       if (u === 'm') return v / 100;
       if (u === 'in') return v / 2.54;
       if (u === 'ft') return v / 30.48;
-      if (u === 'ftin') return v / 30.48;
+      if (u === 'ftin') {
+        const totalInches = v / 2.54;
+        const sign = totalInches < 0 ? -1 : 1;
+        const abs = Math.abs(totalInches);
+        const feet = Math.floor(abs / 12);
+        const inches = Math.round(abs - feet * 12);
+        if (inches === 12) return sign * (feet + 1);
+        const pad = inches < 10 ? `0${inches}` : `${inches}`;
+        return sign * Number(`${feet}.${pad}`);
+      }
     },
   },
 };
@@ -468,10 +506,13 @@ function formatValue(v, unitId, categoryId) {
     return `${sign}${stones} st ${lbs} lb`;
   }
   if (unitId === 'ftin') {
-    const feet = Math.floor(v);
-    const inches = Math.round((v - feet) * 12 * 10) / 10;
-    if (inches >= 12) return `${feet + 1}' 0"`;
-    return `${feet}' ${inches}"`;
+    // v is in ft.II encoding (e.g. 5.05 = 5'5", 5.10 = 5'10").
+    const sign = v < 0 ? '-' : '';
+    const abs = Math.abs(v);
+    const feet = Math.trunc(abs);
+    const inches = Math.round((abs - feet) * 100);
+    if (inches === 12) return `${sign}${feet + 1}' 0"`;
+    return `${sign}${feet}' ${inches}"`;
   }
   if (categoryId === 'cooking' && unitId === 'gas') {
     if (v <= 0.3) return '¼';
@@ -800,6 +841,19 @@ function ConversionScreen({ categoryId, onBack, onRecord }) {
       const pad = lbs < 10 ? `0${lbs}` : `${lbs}`;
       return sign * Number(`${stones}.${pad}`);
     }
+    if (fromUnit === 'ftin') {
+      // "5.5" = 5'5", "5.10" = 5'10", "5.11" = 5'11".
+      // Encoded as ft.II where II is integer inches 00-11.
+      const m = String(value).match(/^(-?)(\d*)(?:\.(\d{0,2}))?$/);
+      if (!m) return Number(value) || 0;
+      const sign = m[1] === '-' ? -1 : 1;
+      const feet = m[2] === '' ? 0 : parseInt(m[2], 10);
+      const inStr = m[3] || '';
+      let inches = inStr === '' ? 0 : parseInt(inStr, 10);
+      if (inches > 11) inches = 11;
+      const pad = inches < 10 ? `0${inches}` : `${inches}`;
+      return sign * Number(`${feet}.${pad}`);
+    }
     return Number(value);
   }, [value, fromUnit, categoryId]);
 
@@ -831,6 +885,10 @@ function ConversionScreen({ categoryId, onBack, onRecord }) {
       if (newU === 'st_lb' && fromUnit !== 'st_lb') setValue('11');
       if (newU !== 'st_lb' && fromUnit === 'st_lb') setValue('1');
     }
+    if (categoryId === 'distance' || categoryId === 'height') {
+      if (newU === 'ftin' && fromUnit !== 'ftin') setValue('5');
+      if (newU !== 'ftin' && fromUnit === 'ftin') setValue('1');
+    }
     setFromUnit(newU);
   };
 
@@ -842,6 +900,12 @@ function ConversionScreen({ categoryId, onBack, onRecord }) {
       const stones = Math.trunc(abs);
       const lbs = Math.round((abs - stones) * 100);
       setValue(`${result < 0 ? '-' : ''}${stones}${lbs ? `.${lbs}` : ''}`);
+    } else if (toUnit === 'ftin') {
+      // result is in ft.II encoding — repack as a user-typed string.
+      const abs = Math.abs(result);
+      const feet = Math.trunc(abs);
+      const inches = Math.round((abs - feet) * 100);
+      setValue(`${result < 0 ? '-' : ''}${feet}${inches ? `.${inches}` : ''}`);
     } else {
       setValue(formatValue(result, toUnit, categoryId).replace(/[^\d.\-]/g, '') || '0');
     }
@@ -890,6 +954,11 @@ function ConversionScreen({ categoryId, onBack, onRecord }) {
                 Type as st.lb · e.g. 11.5 = 11 st 5 lb
               </div>
             )}
+            {fromUnit === 'ftin' && (
+              <div style={{ fontSize: 10, fontWeight: 600, opacity: 0.75, fontStyle:'italic' }}>
+                Type as ft.in · e.g. 5.5 = 5' 5"
+              </div>
+            )}
           </div>
           <input
             value={value}
@@ -910,6 +979,11 @@ function ConversionScreen({ categoryId, onBack, onRecord }) {
           {fromUnit === 'st_lb' && value !== '' && value !== '-' && (
             <div style={{ fontSize: 12, fontWeight: 600, opacity: 0.85, marginTop: -2 }}>
               {formatValue(parsedValue, 'st_lb', 'weight')}
+            </div>
+          )}
+          {fromUnit === 'ftin' && value !== '' && value !== '-' && (
+            <div style={{ fontSize: 12, fontWeight: 600, opacity: 0.85, marginTop: -2 }}>
+              {formatValue(parsedValue, 'ftin', categoryId)}
             </div>
           )}
           <div style={{ height: 1, background: 'rgba(255,255,255,0.25)', margin: '6px 0 14px' }}/>
