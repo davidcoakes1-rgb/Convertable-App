@@ -6,7 +6,7 @@
 <title>Convertable — Unit Converter</title>
 
 <!-- PWA -->
-<meta name="theme-color" content="#0F766E"/>
+<meta name="theme-color" content="#1E293B"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
@@ -67,29 +67,32 @@
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useRef, useMemo } = React;
 
-const TWEAKS = { accent: 'teal', tileStyle: 'solid', radius: 6 };
+const TWEAKS = { accent: 'slate', tileStyle: 'solid', radius: 6 };
 
 const ACCENTS = {
   indigo:  { bg: '#6366F1', soft: '#E0E7FF', deep: '#4338CA' },
   teal:    { bg: '#14B8A6', soft: '#CCFBF1', deep: '#0F766E' },
   rose:    { bg: '#F43F5E', soft: '#FFE4E6', deep: '#BE123C' },
   amber:   { bg: '#F59E0B', soft: '#FEF3C7', deep: '#B45309' },
-  slate:   { bg: '#475569', soft: '#E2E8F0', deep: '#1E293B' },
+  slate:   { bg: '#334155', soft: '#E2E8F0', deep: '#1E293B' },
 };
 
+// Refined jewel-tone palette (Tailwind 700/800 shades) for a more
+// restrained, professional feel — each category still has its own hue,
+// just darker and less saturated than the original playful palette.
 const CATEGORY_COLORS = {
-  distance:    { bg: '#10B981', soft: '#D1FAE5', deep: '#047857' },
-  area:        { bg: '#6366F1', soft: '#E0E7FF', deep: '#4338CA' },
-  weight:      { bg: '#EF4444', soft: '#FEE2E2', deep: '#B91C1C' },
-  temperature: { bg: '#F97316', soft: '#FFEDD5', deep: '#C2410C' },
-  fuel:        { bg: '#EC4899', soft: '#FCE7F3', deep: '#BE185D' },
-  speed:       { bg: '#8B5CF6', soft: '#EDE9FE', deep: '#6D28D9' },
-  time:        { bg: '#F59E0B', soft: '#FEF3C7', deep: '#B45309' },
-  cooking:     { bg: '#14B8A6', soft: '#CCFBF1', deep: '#0F766E' },
-  currency:    { bg: '#22C55E', soft: '#DCFCE7', deep: '#15803D' },
-  height:      { bg: '#0EA5E9', soft: '#E0F2FE', deep: '#0369A1' },
-  volume:      { bg: '#D946EF', soft: '#FAE8FF', deep: '#A21CAF' },
-  data:        { bg: '#0891B2', soft: '#CFFAFE', deep: '#155E75' },
+  distance:    { bg: '#047857', soft: '#D1FAE5', deep: '#064E3B' }, // emerald-700
+  area:        { bg: '#1E40AF', soft: '#DBEAFE', deep: '#1E3A8A' }, // blue-800
+  weight:      { bg: '#9F1239', soft: '#FFE4E6', deep: '#881337' }, // rose-800
+  temperature: { bg: '#9A3412', soft: '#FFEDD5', deep: '#7C2D12' }, // orange-800
+  fuel:        { bg: '#9D174D', soft: '#FCE7F3', deep: '#831843' }, // pink-800
+  speed:       { bg: '#5B21B6', soft: '#EDE9FE', deep: '#4C1D95' }, // violet-800
+  time:        { bg: '#A16207', soft: '#FEF3C7', deep: '#854D0E' }, // yellow-700
+  cooking:     { bg: '#115E59', soft: '#CCFBF1', deep: '#134E4A' }, // teal-800
+  currency:    { bg: '#15803D', soft: '#DCFCE7', deep: '#14532D' }, // green-700
+  height:      { bg: '#0369A1', soft: '#E0F2FE', deep: '#075985' }, // sky-700
+  volume:      { bg: '#86198F', soft: '#FAE8FF', deep: '#701A75' }, // fuchsia-800
+  data:        { bg: '#155E75', soft: '#CFFAFE', deep: '#164E63' }, // cyan-800
 };
 
 const ICONS = {
