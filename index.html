@@ -210,7 +210,7 @@ const CATEGORIES = {
       { id: 'm',  label: 'Metre',       short: 'm',   factor: 1 },
       { id: 'km', label: 'Kilometre',   short: 'km',  factor: 1000 },
       { id: 'in', label: 'Inch',        short: 'in',  factor: 0.0254 },
-      { id: 'ft', label: 'Foot',        short: 'ft',  factor: 0.3048 },
+      { id: 'ftin', label: 'Feet & Inches', short: "ft'in\"", factor: 0.3048 },
       { id: 'yd', label: 'Yard',        short: 'yd',  factor: 0.9144 },
       { id: 'mi', label: 'Mile',        short: 'mi',  factor: 1609.344 },
       { id: 'nmi', label: 'Nautical mile', short: 'nmi', factor: 1852 },
@@ -467,7 +467,7 @@ function formatValue(v, unitId, categoryId) {
     const lbs = Math.round((abs - stones) * 100);
     return `${sign}${stones} st ${lbs} lb`;
   }
-  if (categoryId === 'height' && unitId === 'ftin') {
+  if (unitId === 'ftin') {
     const feet = Math.floor(v);
     const inches = Math.round((v - feet) * 12 * 10) / 10;
     if (inches >= 12) return `${feet + 1}' 0"`;
@@ -1111,8 +1111,16 @@ function App() {
   const [screen, setScreen] = useState(() => localStorage.getItem('cau_screen') || 'home');
   const [category, setCategory] = useState(() => localStorage.getItem('cau_cat') || 'distance');
   const [history, setHistory] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('cau_history') || '[]'); }
-    catch { return []; }
+    try {
+      const raw = JSON.parse(localStorage.getItem('cau_history') || '[]');
+      // Drop entries that reference categories or units no longer in the app
+      // (e.g. the old `ft` unit after we replaced it with `ftin`).
+      return raw.filter(h => {
+        const cat = CATEGORIES[h.category];
+        if (!cat) return false;
+        return cat.units.some(u => u.id === h.from) && cat.units.some(u => u.id === h.to);
+      });
+    } catch { return []; }
   });
 
   const accent = ACCENTS[tweaks.accent] || ACCENTS.indigo;
